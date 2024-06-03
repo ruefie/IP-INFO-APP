@@ -1,60 +1,105 @@
-// src/App.jsx
-import React, { useEffect, useState } from 'react';
-import axios from 'axios';
-import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
-import 'leaflet/dist/leaflet.css';
-import { DateTime } from 'luxon';
+import React, { useEffect, useState } from "react";
+import axios from "axios";
+import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
+import { DateTime } from "luxon";
+import "leaflet/dist/leaflet.css";
+import "antd/dist/reset.css";
+// import 'antd/dist/antd.css'; // Import Ant Design CSS
+import { Layout, Card, Spin, Typography } from "antd";
+import "./App.css";
 
-const App = () => {
-  const [ipData, setIpData] = useState(null);
-  const [countryData, setCountryData] = useState(null);
+const { Header, Content } = Layout;
+const { Title, Text } = Typography;
+
+function App() {
+  const [ipInfo, setIpInfo] = useState(null);
+  const [countryInfo, setCountryInfo] = useState(null);
 
   useEffect(() => {
-    const fetchIPData = async () => {
+    const fetchIpInfo = async () => {
       try {
-        const response = await axios.get(`https://geo.ipify.org/api/v2/country,city?apiKey=${import.meta.env.VITE_IPIFY_API_KEY}`);
-        setIpData(response.data);
+        const response = await axios.get(
+          `https://geo.ipify.org/api/v2/country,city?apiKey=${import.meta.env.VITE_IPIFY_API_KEY}`
+        );
+        setIpInfo(response.data);
 
-        const countryResponse = await axios.get(`https://restcountries.com/v3.1/alpha/${response.data.location.country}`);
-        setCountryData(countryResponse.data[0]);
+        const countryResponse = await axios.get(
+          `https://restcountries.com/v3.1/alpha/${response.data.location.country}`
+        );
+        setCountryInfo(countryResponse.data[0]);
       } catch (error) {
-        console.error("Error fetching the IP or country data", error);
+        console.error("Error fetching IP information:", error);
       }
     };
 
-    fetchIPData();
+    fetchIpInfo();
   }, []);
 
-  if (!ipData || !countryData) return <div>Loading...</div>;
+  if (!ipInfo || !countryInfo) {
+    return (
+      <Layout className="layout">
+        <Content style={{ padding: "50px", textAlign: "center" }}>
+          <Spin size="large" />
+        </Content>
+      </Layout>
+    );
+  }
 
-  const localTime = DateTime.local().setZone(ipData.location.timezone).toLocaleString(DateTime.DATETIME_FULL);
+  const {
+    ip,
+    location: { city, country, lat, lng, timezone },
+  } = ipInfo;
 
   return (
-    <div style={{ textAlign: 'center', padding: '20px' }}>
-      <h1>IP Information</h1>
-      <p><strong>IP Address:</strong> {ipData.ip}</p>
-      <p><strong>Location:</strong> {ipData.location.city}, {ipData.location.region}, {ipData.location.country}</p>
-      <p><strong>Time Zone:</strong> {ipData.location.timezone}</p>
-      <p><strong>ISP:</strong> {ipData.isp}</p>
-      <p><strong>Local Time:</strong> {localTime}</p>
-      <p><strong>Country Info:</strong></p>
-      <img src={countryData.flags.svg} alt={`Flag of ${countryData.name.common}`} width="100" />
-      <p><strong>Country Name:</strong> {countryData.name.common}</p>
-      <p><strong>Population:</strong> {countryData.population}</p>
-      <p><strong>Capital:</strong> {countryData.capital[0]}</p>
-
-      <MapContainer center={[ipData.location.lat, ipData.location.lng]} zoom={13} style={{ height: '400px', width: '100%' }}>
-        <TileLayer
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        />
-        <Marker position={[ipData.location.lat, ipData.location.lng]}>
-          <Popup>
-            {ipData.location.city}, {ipData.location.region}, {ipData.location.country}
-          </Popup>
-        </Marker>
-      </MapContainer>
-    </div>
+    <Layout className="layout">
+      <Header>
+        <Title style={{ color: "white" }}>IP Information</Title>
+      </Header>
+      <Content className="content">
+        <Card title="IP Information" style={{ width: "80%" }}>
+          <p>
+            <Text strong>IP Address:</Text> {ip}
+          </p>
+          <p>
+            <Text strong>Location:</Text> {city}, {country}
+          </p>
+          <p>
+            <Text strong>Latitude:</Text> {lat}, <Text strong>Longitude:</Text>{" "}
+            {lng}
+          </p>
+          <p>
+            <Text strong>Timezone:</Text> {timezone}
+          </p>
+          <p>
+            <Text strong>Local Time:</Text>{" "}
+            {DateTime.now().setZone(timezone).toFormat("ff")}
+          </p>
+          <p>
+            <Text strong>Country Flag:</Text>
+            <br />
+            <img
+              src={countryInfo.flags.svg}
+              alt={`Flag of ${countryInfo.name.common}`}
+              width="100"
+            />
+          </p>
+        </Card>
+        <Card title="Map" style={{ width: "90%" }}>
+          <MapContainer center={[lat, lng]} zoom={13} className="map">
+            <TileLayer
+              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            />
+            <Marker position={[lat, lng]}>
+              <Popup>
+                {city}, {country}
+              </Popup>
+            </Marker>
+          </MapContainer>
+        </Card>
+      </Content>
+    </Layout>
   );
-};
+}
 
 export default App;
